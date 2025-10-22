@@ -1,0 +1,66 @@
+name: Deploy to Azure VM
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'autogpt_platform/**'
+      - '.github/workflows/deploy-azure.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy AutoGPT Platform to Azure
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Azure VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AZURE_VM_HOST }}
+          username: ${{ secrets.AZURE_VM_USERNAME }}
+          key: ${{ secrets.AZURE_VM_SSH_KEY }}
+          script: |
+            echo "🚀 Starting deployment..."
+            
+            # Navigate to project directory
+            cd ~/AutoGPT
+            
+            # Backup current state
+            echo "📦 Creating backup..."
+            BACKUP_DIR=~/autogpt_backups/$(date +%Y%m%d_%H%M%S)
+            mkdir -p $BACKUP_DIR
+            cp -r autogpt_platform/backend/.env $BACKUP_DIR/ 2>/dev/null || true
+            
+            # Pull latest changes
+            echo "⬇️ Pulling latest changes..."
+            git fetch origin
+            git reset --hard origin/master
+            
+            # Restore environment files
+            echo "🔧 Restoring environment configuration..."
+            cp $BACKUP_DIR/.env autogpt_platform/backend/.env 2>/dev/null || true
+            
+            # Rebuild and restart services
+            echo "🔨 Rebuilding backend services..."
+            cd autogpt_platform
+            docker compose build executor rest_server websocket_server scheduler_server
+            
+            echo "♻️ Restarting services..."
+            docker compose stop executor rest_server websocket_server scheduler_server
+            docker compose up -d executor rest_server websocket_server scheduler_server
+            
+            # Health check
+            echo "🏥 Waiting for services to be healthy..."
+            sleep 10
+            
+            # Verify services are running
+            docker compose ps | grep -E "executor|rest_server|websocket_server|scheduler_server"
+            
+            echo "✅ Deployment complete!"
+            echo "📊 Service status:"
+            docker compose ps
+
