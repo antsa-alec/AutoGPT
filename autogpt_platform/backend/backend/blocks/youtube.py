@@ -1,8 +1,10 @@
+import os
 from urllib.parse import parse_qs, urlparse
 
 from youtube_transcript_api._api import YouTubeTranscriptApi
 from youtube_transcript_api._transcripts import FetchedTranscript
 from youtube_transcript_api.formatters import TextFormatter
+from youtube_transcript_api.proxies import WebshareProxyConfig
 
 from backend.data.block import Block, BlockCategory, BlockOutput, BlockSchema
 from backend.data.model import SchemaField
@@ -64,7 +66,30 @@ class TranscribeYoutubeVideoBlock(Block):
 
     @staticmethod
     def get_transcript(video_id: str) -> FetchedTranscript:
-        return YouTubeTranscriptApi().fetch(video_id=video_id)
+        """
+        Fetches the transcript for a YouTube video.
+        
+        To work around IP bans from cloud providers (AWS, Azure, GCP), configure
+        Webshare residential proxies using environment variables:
+        - WEBSHARE_PROXY_USERNAME: Your Webshare proxy username
+        - WEBSHARE_PROXY_PASSWORD: Your Webshare proxy password
+        
+        This will use Webshare's rotating residential proxies automatically.
+        See: https://github.com/jdepoix/youtube-transcript-api#working-around-ip-bans-requestblocked-or-ipblocked-exception
+        """
+        proxy_username = os.getenv("WEBSHARE_PROXY_USERNAME")
+        proxy_password = os.getenv("WEBSHARE_PROXY_PASSWORD")
+        
+        if proxy_username and proxy_password:
+            # Use Webshare residential proxies with automatic rotation
+            proxy_config = WebshareProxyConfig(
+                proxy_username=proxy_username,
+                proxy_password=proxy_password,
+            )
+            return YouTubeTranscriptApi(proxy_config=proxy_config).fetch(video_id=video_id)
+        else:
+            # No proxy configured, use direct connection
+            return YouTubeTranscriptApi().fetch(video_id=video_id)
 
     @staticmethod
     def format_transcript(transcript: FetchedTranscript) -> str:
