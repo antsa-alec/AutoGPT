@@ -2,6 +2,7 @@ import os
 from urllib.parse import parse_qs, urlparse
 
 from youtube_transcript_api._api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import NoTranscriptFound
 from youtube_transcript_api._transcripts import FetchedTranscript
 from youtube_transcript_api.formatters import TextFormatter
 from youtube_transcript_api.proxies import WebshareProxyConfig
@@ -67,7 +68,7 @@ class TranscribeYoutubeVideoBlock(Block):
     @staticmethod
     def get_transcript(video_id: str) -> FetchedTranscript:
         """
-        Fetches the transcript for a YouTube video.
+        Get transcript for a video, preferring English but falling back to any available language.
         
         To work around IP bans from cloud providers (AWS, Azure, GCP), configure
         Webshare residential proxies using environment variables:
@@ -76,7 +77,12 @@ class TranscribeYoutubeVideoBlock(Block):
         
         This will use Webshare's rotating residential proxies automatically.
         See: https://github.com/jdepoix/youtube-transcript-api#working-around-ip-bans-requestblocked-or-ipblocked-exception
+        
+        :param video_id: The YouTube video ID
+        :return: The fetched transcript
+        :raises: Any exception except NoTranscriptFound for requested languages
         """
+        # Configure proxy if credentials are provided
         proxy_username = os.getenv("WEBSHARE_PROXY_USERNAME")
         proxy_password = os.getenv("WEBSHARE_PROXY_PASSWORD")
         
@@ -86,10 +92,26 @@ class TranscribeYoutubeVideoBlock(Block):
                 proxy_username=proxy_username,
                 proxy_password=proxy_password,
             )
-            return YouTubeTranscriptApi(proxy_config=proxy_config).fetch(video_id=video_id)
+            api = YouTubeTranscriptApi(proxy_config=proxy_config)
         else:
             # No proxy configured, use direct connection
-            return YouTubeTranscriptApi().fetch(video_id=video_id)
+            api = YouTubeTranscriptApi()
+        
+        try:
+            # Try to get English transcript first (default behavior)
+            return api.fetch(video_id=video_id)
+        except NoTranscriptFound:
+            # If English is not available, get the first available transcript
+            transcript_list = api.list(video_id)
+            # Try manually created transcripts first, then generated ones
+            available_transcripts = list(
+                transcript_list._manually_created_transcripts.values()
+            ) + list(transcript_list._generated_transcripts.values())
+            if available_transcripts:
+                # Fetch the first available transcript
+                return available_transcripts[0].fetch()
+            # If no transcripts at all, re-raise the original error
+            raise
 
     @staticmethod
     def format_transcript(transcript: FetchedTranscript) -> str:
