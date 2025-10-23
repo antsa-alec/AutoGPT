@@ -105,6 +105,26 @@ class AutoRepost(BaseModel):
     endDate: Optional[str] = None
 
 
+class HistoryPost(BaseModel):
+    """Model for a single post in history response"""
+    id: str
+    post: str
+    platforms: list[str]
+    created: Optional[str] = None
+    postIds: Optional[list[PostIds]] = None
+    mediaUrls: Optional[list[str]] = None
+    scheduleDate: Optional[str] = None
+    status: Optional[str] = None
+    errors: Optional[list[str]] = None
+
+
+class HistoryResponse(BaseModel):
+    """Response model for history API endpoint"""
+    posts: list[HistoryPost]
+    lastKey: Optional[str] = None
+    lastKeyNext: Optional[str] = None
+
+
 class AyrshareClient:
     """Client for the Ayrshare Social Media Post API"""
 
@@ -112,6 +132,7 @@ class AyrshareClient:
     POST_ENDPOINT = f"{API_URL}/post"
     PROFILES_ENDPOINT = f"{API_URL}/profiles"
     JWT_ENDPOINT = f"{PROFILES_ENDPOINT}/generateJWT"
+    HISTORY_ENDPOINT = f"{API_URL}/history"
 
     def __init__(
         self,
@@ -513,3 +534,69 @@ class AyrshareClient:
             )
         logger.warn(f"Ayrshare API returned posts: {response_data['posts']}")
         return PostResponse(**response_data["posts"][0])
+
+    async def get_history(
+        self,
+        *,
+        platforms: Optional[list[SocialPlatform]] = None,
+        last_days: Optional[int] = None,
+        last_records: Optional[int] = None,
+        last_key: Optional[str] = None,
+        profile_key: Optional[str] = None,
+    ) -> HistoryResponse:
+        """
+        Retrieve post history from social media platforms.
+
+        Docs: https://www.ayrshare.com/docs/apis/history/get-history
+
+        Args:
+            platforms: List of platforms to filter by (e.g. [SocialPlatform.LINKEDIN, SocialPlatform.FACEBOOK])
+            last_days: Number of days to go back (1-730)
+            last_records: Number of records to return (1-100, default 50)
+            last_key: Pagination key for retrieving next set of results
+            profile_key: User profile key for accessing specific user's history
+
+        Returns:
+            HistoryResponse object containing the post history
+
+        Raises:
+            AyrshareAPIException: If the API request fails
+        """
+        params: dict[str, Any] = {}
+
+        if platforms:
+            params["platform"] = ",".join([p.value for p in platforms])
+        if last_days is not None:
+            params["lastDays"] = last_days
+        if last_records is not None:
+            params["lastRecords"] = last_records
+        if last_key:
+            params["lastKey"] = last_key
+
+        headers = self.headers.copy()
+        if profile_key:
+            headers["Profile-Key"] = profile_key
+
+        response = await self._requests.get(
+            self.HISTORY_ENDPOINT, params=params, headers=headers
+        )
+
+        logger.info(f"Ayrshare history request params: {params}")
+        if not response.ok:
+            logger.error(
+                f"Ayrshare History API request failed ({response.status}): {response.text()}"
+            )
+            try:
+                error_data = response.json()
+                error_message = error_data.get("message", "Unknown error")
+            except json.JSONDecodeError:
+                error_message = response.text()
+
+            raise AyrshareAPIException(
+                f"Ayrshare History API request failed ({response.status}): {error_message}",
+                response.status,
+            )
+
+        response_data = response.json()
+        logger.info(f"Ayrshare History API returned: {response_data}")
+        return HistoryResponse(**response_data)
