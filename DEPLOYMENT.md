@@ -53,9 +53,15 @@ The following secrets are configured in the repository:
 # Webshare Residential Proxy Configuration
 WEBSHARE_PROXY_USERNAME=ahlvylid
 WEBSHARE_PROXY_PASSWORD=md47d3kbwglo
+
+# Ayrshare Social Media Integration
+AYRSHARE_API_KEY=5A0A8184-A9B54D8D-B0892C88-72C151CE
+AYRSHARE_JWT_KEY=${AYRSHARE_JWT_KEY:-}
 ```
 
-These credentials enable the YouTube transcript API to bypass IP blocks from cloud providers by routing requests through Webshare's rotating residential proxy pool.
+**Configuration Details:**
+- **Webshare**: Enables the YouTube transcript API to bypass IP blocks from cloud providers by routing requests through Webshare's rotating residential proxy pool
+- **Ayrshare**: Enables social media integration for LinkedIn, Facebook, and other platforms. Users link their accounts via OAuth through the AutoGPT UI
 
 ## How to Deploy
 

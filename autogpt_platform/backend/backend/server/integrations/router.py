@@ -629,7 +629,7 @@ async def get_ayrshare_sso_url(
             allowed_social=[
                 # NOTE: We are enabling platforms one at a time
                 # to speed up the development process
-                # SocialPlatform.FACEBOOK,
+                SocialPlatform.FACEBOOK,
                 SocialPlatform.TWITTER,
                 SocialPlatform.LINKEDIN,
                 SocialPlatform.INSTAGRAM,
