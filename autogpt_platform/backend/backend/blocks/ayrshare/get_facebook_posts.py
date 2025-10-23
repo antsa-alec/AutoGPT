@@ -48,7 +48,7 @@ class GetFacebookPostsBlock(Block):
 
     def __init__(self):
         super().__init__(
-            id="e5f6g7h8-5678-4567-89ab-facebookget001",
+            id="e5f6g7h8-9abc-4def-0123-456789fedcba",
             description="Retrieve Facebook post history using Ayrshare",
             categories={BlockCategory.SOCIAL},
             block_type=BlockType.AYRSHARE,

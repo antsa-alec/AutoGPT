@@ -48,7 +48,7 @@ class GetLinkedInPostsBlock(Block):
 
     def __init__(self):
         super().__init__(
-            id="a1b2c3d4-1234-4567-89ab-linkedinget001",
+            id="a1b2c3d4-5678-4abc-9def-012345abcde1",
             description="Retrieve LinkedIn post history using Ayrshare",
             categories={BlockCategory.SOCIAL},
             block_type=BlockType.AYRSHARE,
