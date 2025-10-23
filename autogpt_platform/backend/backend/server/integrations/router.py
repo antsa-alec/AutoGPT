@@ -630,6 +630,19 @@ async def get_ayrshare_sso_url(
     private_key = settings.secrets.ayrshare_jwt_key
     # Ayrshare JWT expiry is 2880 minutes (48 hours)
     max_expiry_minutes = 2880
+    
+    # If we don't have a profile key, it means the user doesn't have a Business Plan
+    # In this case, we need to direct them to connect accounts via the Ayrshare dashboard
+    if not profile_key_str:
+        logger.info(
+            f"User {user_id} does not have Business Plan - directing to Ayrshare dashboard"
+        )
+        # For non-Business Plan users, they need to connect accounts via Ayrshare dashboard
+        # We'll provide a link to their Ayrshare dashboard where they can connect accounts
+        dashboard_url = "https://app.ayrshare.com/social-accounts"
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=max_expiry_minutes)
+        return AyrshareSSOResponse(sso_url=dashboard_url, expires_at=expires_at)
+    
     try:
         logger.debug(f"Generating Ayrshare JWT for user {user_id}")
         jwt_response = await client.generate_jwt(
