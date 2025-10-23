@@ -1,0 +1,118 @@
+name: Deploy AutoGPT Platform to Azure VM
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'autogpt_platform/**'
+      - '.github/workflows/deploy-azure-vm.yml'
+  workflow_dispatch:
+
+env:
+  VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+  VM_USER: ${{ secrets.AZURE_VM_USER }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Azure VM
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AZURE_VM_SSH_KEY }}" > ~/.ssh/azure_vm_key
+          chmod 600 ~/.ssh/azure_vm_key
+          ssh-keyscan -H ${{ secrets.AZURE_VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to VM with cleanup
+        run: |
+          ssh -i ~/.ssh/azure_vm_key ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }} << 'ENDSSH'
+            set -e
+            
+            echo "================================"
+            echo "🛑 Stopping all services..."
+            echo "================================"
+            cd ~/AutoGPT/autogpt_platform
+            docker compose down
+            
+            echo "================================"
+            echo "🧹 Cleaning up Docker resources..."
+            echo "================================"
+            # Remove old images, containers, and build cache
+            docker system prune -a -f --volumes
+            
+            # Check disk space after cleanup
+            echo "Disk space after cleanup:"
+            df -h / | grep -E '^Filesystem|/$'
+            
+            echo "================================"
+            echo "📥 Pulling latest code..."
+            echo "================================"
+            cd ~/AutoGPT
+            git fetch origin
+            git reset --hard origin/master
+            
+            echo "================================"
+            echo "🔧 Setting environment variables..."
+            echo "================================"
+            cd ~/AutoGPT/autogpt_platform/backend
+            # Ensure AYRSHARE_API_KEY is set
+            if ! grep -q "AYRSHARE_API_KEY" .env 2>/dev/null; then
+              echo "AYRSHARE_API_KEY=${{ secrets.AYRSHARE_API_KEY }}" >> .env
+            fi
+            if ! grep -q "AYRSHARE_JWT_KEY" .env 2>/dev/null; then
+              echo "AYRSHARE_JWT_KEY=${{ secrets.AYRSHARE_JWT_KEY }}" >> .env
+            fi
+            
+            echo "================================"
+            echo "🔨 Building Docker images (no cache)..."
+            echo "================================"
+            cd ~/AutoGPT/autogpt_platform
+            docker compose build --no-cache database_manager rest_server executor
+            
+            echo "================================"
+            echo "🚀 Starting all services..."
+            echo "================================"
+            docker compose up -d
+            
+            echo "================================"
+            echo "⏳ Waiting for services to be healthy..."
+            echo "================================"
+            sleep 30
+            
+            echo "================================"
+            echo "✅ Checking service status..."
+            echo "================================"
+            docker compose ps
+            
+            echo "================================"
+            echo "📊 Final disk space:"
+            echo "================================"
+            df -h / | grep -E '^Filesystem|/$'
+            
+            echo "================================"
+            echo "🎉 Deployment complete!"
+            echo "================================"
+          ENDSSH
+
+      - name: Cleanup SSH key
+        if: always()
+        run: |
+          rm -f ~/.ssh/azure_vm_key
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "✅ Deployment succeeded"
+          else
+            echo "❌ Deployment failed"
+            exit 1
+          fi
+
