@@ -159,7 +159,7 @@ class AyrshareClient:
     async def generate_jwt(
         self,
         private_key: str,
-        profile_key: str,
+        profile_key: Optional[str] = None,
         logout: Optional[bool] = None,
         redirect: Optional[str] = None,
         allowed_social: Optional[list[SocialPlatform]] = None,
@@ -176,7 +176,7 @@ class AyrshareClient:
         Args:
             domain: Domain of app. Must match the domain given during onboarding.
             private_key: Private Key used for encryption.
-            profile_key: User Profile Key (not the API Key).
+            profile_key: User Profile Key (not the API Key). Optional for non-Business Plan users.
             logout: Automatically logout the current session.
             redirect: URL to redirect to when the "Done" button or logo is clicked.
             allowed_social: List of social networks to display in the linking page.
@@ -194,11 +194,16 @@ class AyrshareClient:
         payload: dict[str, Any] = {
             "domain": "id-pojeg",
             "privateKey": private_key,
-            "profileKey": profile_key,
         }
 
-        headers = self.headers
-        headers["Profile-Key"] = profile_key
+        # Only include profileKey if provided (Business Plan feature)
+        if profile_key:
+            payload["profileKey"] = profile_key
+
+        headers = self.headers.copy()
+        # Only add Profile-Key header if provided (Business Plan feature)
+        if profile_key:
+            headers["Profile-Key"] = profile_key
         if logout is not None:
             payload["logout"] = logout
         if redirect is not None:

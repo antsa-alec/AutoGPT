@@ -589,34 +589,43 @@ async def get_ayrshare_sso_url(
         )
 
     # Ayrshare profile key is stored in the credentials store
-    # It is generated when creating a new profile, if there is no profile key,
-    # we create a new profile and store the profile key in the credentials store
+    # It is generated when creating a new profile for Business Plan users.
+    # For non-Business Plan users, profile_key can be None and JWT generation
+    # will use the main API key instead.
 
     user_integrations: UserIntegrations = await get_user_integrations(user_id)
     profile_key = user_integrations.managed_credentials.ayrshare_profile_key
 
+    profile_key_str = None
     if not profile_key:
-        logger.debug(f"Creating new Ayrshare profile for user {user_id}")
+        logger.debug(
+            f"No Ayrshare profile for user {user_id}, will use main API key"
+        )
+        # Try to create a profile for Business Plan users, but continue without it
+        # if the user doesn't have a Business Plan
         try:
             profile = await client.create_profile(
                 title=f"User {user_id}", messaging_active=True
             )
             profile_key = profile.profileKey
             await creds_manager.store.set_ayrshare_profile_key(user_id, profile_key)
+            profile_key_str = profile_key
+            logger.info(f"Created Ayrshare profile for user {user_id}")
         except Exception as e:
-            logger.error(f"Error creating Ayrshare profile for user {user_id}: {e}")
-            raise HTTPException(
-                status_code=HTTP_502_BAD_GATEWAY,
-                detail="Failed to create Ayrshare profile",
+            # If profile creation fails (e.g., requires Business Plan),
+            # continue without a profile key - JWT generation will use the main API key
+            logger.info(
+                f"Could not create Ayrshare profile for user {user_id} "
+                f"(likely requires Business Plan): {e}. Continuing with main API key."
             )
+            profile_key_str = None
     else:
         logger.debug(f"Using existing Ayrshare profile for user {user_id}")
-
-    profile_key_str = (
-        profile_key.get_secret_value()
-        if isinstance(profile_key, SecretStr)
-        else str(profile_key)
-    )
+        profile_key_str = (
+            profile_key.get_secret_value()
+            if isinstance(profile_key, SecretStr)
+            else str(profile_key)
+        )
 
     private_key = settings.secrets.ayrshare_jwt_key
     # Ayrshare JWT expiry is 2880 minutes (48 hours)
