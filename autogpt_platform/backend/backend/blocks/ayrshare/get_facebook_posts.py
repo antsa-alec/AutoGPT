@@ -157,4 +157,3 @@ class GetFacebookPostsBlock(Block):
 
         except Exception as e:
             yield "error", f"Failed to retrieve Facebook posts: {str(e)}"
-

@@ -120,6 +120,7 @@ class HistoryPost(BaseModel):
 
 class HistoryResponse(BaseModel):
     """Response model for history API endpoint"""
+
     posts: list[HistoryPost]
     lastKey: Optional[str] = None
     lastKeyNext: Optional[str] = None

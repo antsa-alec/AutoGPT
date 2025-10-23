@@ -157,4 +157,3 @@ class GetLinkedInPostsBlock(Block):
 
         except Exception as e:
             yield "error", f"Failed to retrieve LinkedIn posts: {str(e)}"
-
