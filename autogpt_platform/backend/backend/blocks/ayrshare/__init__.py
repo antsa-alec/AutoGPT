@@ -12,6 +12,4 @@ AYRSHARE_BLOCK_IDS = [
     "7faf4b27-96b0-4f05-bf64-e0de54ae74e1",  # PostToTikTokBlock
     "f8c3b2e1-9d4a-4e5f-8c7b-6a9e8d2f1c3b",  # PostToThreadsBlock
     "a9d7f854-2c83-4e96-b3a1-7f2e9c5d4b8e",  # PostToSnapchatBlock
-    "a1b2c3d4-5678-4abc-9def-012345abcde1",  # GetLinkedInPostsBlock
-    "e5f6g7h8-9abc-4def-0123-456789fedcba",  # GetFacebookPostsBlock
 ]
