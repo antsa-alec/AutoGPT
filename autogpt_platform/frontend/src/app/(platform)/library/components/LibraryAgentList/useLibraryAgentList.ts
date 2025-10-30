@@ -22,7 +22,18 @@ export const useLibraryAgentList = () => {
     {
       query: {
         getNextPageParam: (lastPage) => {
-          const pagination = (lastPage.data as LibraryAgentResponse).pagination;
+          // Only paginate on successful responses with valid pagination data
+          if (!lastPage || lastPage.status !== 200 || !lastPage.data) {
+            return undefined;
+          }
+
+          const response = lastPage.data as LibraryAgentResponse;
+          const pagination = response.pagination;
+          
+          if (!pagination || typeof pagination.current_page !== 'number') {
+            return undefined;
+          }
+
           const isMore =
             pagination.current_page * pagination.page_size <
             pagination.total_items;
@@ -35,13 +46,21 @@ export const useLibraryAgentList = () => {
 
   const allAgents =
     agents?.pages?.flatMap((page) => {
+      // Only process successful responses with valid data
+      if (!page || page.status !== 200 || !page.data) return [];
+      
       const response = page.data as LibraryAgentResponse;
-      return response.agents;
+      return response?.agents || [];
     }) ?? [];
 
-  const agentCount = agents?.pages?.[0]
-    ? (agents.pages[0].data as LibraryAgentResponse).pagination.total_items
-    : 0;
+  const agentCount = (() => {
+    const firstPage = agents?.pages?.[0];
+    // Only count from successful responses
+    if (!firstPage || firstPage.status !== 200 || !firstPage.data) return 0;
+    
+    const response = firstPage.data as LibraryAgentResponse;
+    return response?.pagination?.total_items || 0;
+  })();
 
   return {
     allAgents,
