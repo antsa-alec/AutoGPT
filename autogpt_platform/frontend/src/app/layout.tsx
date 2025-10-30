@@ -13,6 +13,9 @@ import { Analytics } from "@vercel/analytics/next";
 import { headers } from "next/headers";
 import { SetupAnalytics } from "@/services/analytics";
 
+// Check if we're running on Vercel
+const isVercelEnvironment = !!process.env.VERCEL_ENV;
+
 export const metadata: Metadata = {
   title: "AutoGPT Platform",
   description: "Your one stop shop to creating AI Agents",
@@ -51,8 +54,13 @@ export default async function RootLayout({
           <div className="flex min-h-screen flex-col items-stretch justify-items-stretch">
             {children}
             <TallyPopupSimple />
-            <SpeedInsights />
-            <Analytics />
+            {/* Only load Vercel analytics when running on Vercel */}
+            {isVercelEnvironment && (
+              <>
+                <SpeedInsights />
+                <Analytics />
+              </>
+            )}
 
             {/* React Query DevTools is only available in development */}
             {process.env.NEXT_PUBLIC_REACT_QUERY_DEVTOOL && (
